@@ -1,6 +1,7 @@
 import { Product } from '../models/Product.js';
 import { Order } from '../models/Order.js';
 import { redis, dropKeys, ACTIVE_DROPS } from '../redis.js';
+import { ordersQueue } from '../queue.js';
 
 /**
  * Start a new drop.
@@ -15,6 +16,7 @@ export async function createDrop({ stock = 100, holdSeconds = 120 } = {}) {
   const oldKeys = oldIds.flatMap((id) => Object.values(dropKeys(id)));
   if (oldKeys.length) await redis.del(...oldKeys);
   await redis.del(ACTIVE_DROPS);
+  await ordersQueue.obliterate({ force: true }); // throw away jobs from the old drop
   await Promise.all([Product.deleteMany({}), Order.deleteMany({})]);
 
   const product = await Product.create({
@@ -48,10 +50,12 @@ export async function getDropStats(dropId) {
   if (!product) return null;
 
   const k = dropKeys(dropId);
-  const [available, onHold, paid] = await Promise.all([
+  const [available, onHold, paid, ordersSaved, queue] = await Promise.all([
     redis.get(k.stock).then(Number),
     redis.zcard(k.holds),
-    Order.countDocuments({ productId: product._id, mode: 'drop' }),
+    redis.scard(k.paid), // paid according to Redis (instant)
+    Order.countDocuments({ productId: product._id, mode: 'drop' }), // saved by workers (catches up)
+    ordersQueue.getJobCounts('waiting', 'active', 'delayed', 'failed'),
   ]);
 
   return {
@@ -59,7 +63,10 @@ export async function getDropStats(dropId) {
     available,
     onHold,
     paid,
+    ordersSaved,
+    queue, // waiting = not started, active = being processed, delayed = waiting to retry, failed = gave up
     oversold: Math.max(0, paid - product.initialStock),
     balanced: available + onHold + paid === product.initialStock,
+    allOrdersSaved: ordersSaved === paid,
   };
 }

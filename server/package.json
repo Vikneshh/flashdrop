@@ -7,9 +7,12 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "stampede": "node scripts/stampede.js",
-    "demo:drop": "node scripts/drop-demo.js"
+    "demo:drop": "node scripts/drop-demo.js",
+    "worker": "node src/worker.js",
+    "demo:queue": "node scripts/queue-demo.js"
   },
   "dependencies": {
+    "bullmq": "^6.7.8",
     "express": "^5.3.0",
     "ioredis": "^6.0.0",
     "mongoose": "^9.12.3"

@@ -6,7 +6,12 @@
   an atomic script, exactly ONE of them wins. The item can never be
   both "sold" and "returned to stock".
 
-  KEYS[1] stock, KEYS[2] buyers, KEYS[3] holds
+  On success the user is added to the "paid" set IN THE SAME STEP.
+  That set is our permanent record of "this person paid", even if the
+  server crashes before the order reaches MongoDB. The reconciler uses
+  it to find and repair any missing orders.
+
+  KEYS[1] stock, KEYS[2] buyers, KEYS[3] holds, KEYS[4] paid
   ARGV[1] userId
 
   Returns:  1 = confirmed, it's yours
@@ -29,4 +34,5 @@ if tonumber(expiresAt) < now then
 end
 
 -- Paid in time. The user stays in "buyers" so they can't buy a second one.
+redis.call('SADD', KEYS[4], ARGV[1])
 return 1

@@ -9,7 +9,7 @@ const lua = (name) => readFileSync(new URL(`./lua/${name}.lua`, import.meta.url)
 // Register our Lua scripts as custom commands: redis.reserve(...), etc.
 // ioredis sends each script to Redis once and then calls it by its hash.
 redis.defineCommand('reserveItem', { numberOfKeys: 4, lua: lua('reserve') });
-redis.defineCommand('confirmItem', { numberOfKeys: 3, lua: lua('confirm') });
+redis.defineCommand('confirmItem', { numberOfKeys: 4, lua: lua('confirm') });
 redis.defineCommand('sweepHolds', { numberOfKeys: 3, lua: lua('sweep') });
 
 /**
@@ -22,6 +22,7 @@ export const dropKeys = (dropId) => ({
   stock: `drop:{${dropId}}:stock`,
   buyers: `drop:{${dropId}}:buyers`,
   holds: `drop:{${dropId}}:holds`,
+  paid: `drop:{${dropId}}:paid`, // users who paid (source of truth until MongoDB catches up)
   holdMs: `drop:{${dropId}}:holdMs`,
 });
 
