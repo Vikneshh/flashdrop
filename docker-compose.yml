@@ -1,0 +1,13 @@
+# Local infrastructure for development.
+# Step 1 only needs MongoDB. Redis, Nginx and more servers get added in later steps.
+services:
+  mongo:
+    image: mongo:7
+    container_name: flashdrop-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:
