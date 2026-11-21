@@ -1,20 +1,14 @@
 import { Router } from 'express';
 import { Product } from '../models/Product.js';
 import { Order } from '../models/Order.js';
+import { createDrop } from '../services/drops.js';
 
 export const adminRouter = Router();
 
-// Start a fresh drop: wipe old data and create one product with N items.
+// Start a fresh drop (used by the step-1 stampede script).
 adminRouter.post('/reset', async (req, res) => {
   const stock = Number(req.body.stock ?? 100);
-
-  await Promise.all([Product.deleteMany({}), Order.deleteMany({})]);
-  const product = await Product.create({
-    name: 'Limited Sneakers',
-    initialStock: stock,
-    stock,
-  });
-
+  const product = await createDrop({ stock });
   res.json({ productId: product._id, stock });
 });
 
