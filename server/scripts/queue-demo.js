@@ -12,6 +12,7 @@
  */
 import { parseArgs } from 'node:util';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { apiClient } from './lib.js';
 
 const { values } = parseArgs({
   options: {
@@ -25,13 +26,7 @@ const STOCK = Number(values.stock);
 const BUYERS = Number(values.buyers);
 const API = values.url;
 
-const post = (path, body) =>
-  fetch(`${API}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then((r) => r.json());
-const get = (path) => fetch(`${API}${path}`).then((r) => r.json());
+const { post, get } = apiClient(API);
 
 // ─── Start ───────────────────────────────────────────────
 const { dropId } = await post('/drops', { stock: STOCK, holdSeconds: 60 });

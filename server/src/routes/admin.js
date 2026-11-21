@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { Product } from '../models/Product.js';
 import { Order } from '../models/Order.js';
 import { createDrop } from '../services/drops.js';
-import { redis, dropKeys } from '../redis.js';
+import { dropOps } from '../redis.js';
 
 export const adminRouter = Router();
 
@@ -22,11 +22,11 @@ adminRouter.post('/simulate-crash/:dropId', async (req, res) => {
   if (process.env.NODE_ENV === 'production') return res.status(404).end();
 
   const { userId } = req.body;
-  const k = dropKeys(req.params.dropId);
-  const reserved = await redis.reserveItem(k.stock, k.buyers, k.holds, k.holdMs, userId);
+  const { dropId } = req.params;
+  const reserved = await dropOps.reserve(dropId, userId);
   if (reserved <= 0) return res.status(409).json({ ok: false, reason: 'could_not_reserve', code: reserved });
 
-  await redis.confirmItem(k.stock, k.buyers, k.holds, k.paid, userId);
+  await dropOps.confirm(dropId, userId);
   // 💥 "crash" — no enqueueOrder() call
   res.json({ ok: true, note: 'Paid in Redis, but no job was queued. Wait for the reconciler.' });
 });

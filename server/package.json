@@ -9,7 +9,8 @@
     "stampede": "node scripts/stampede.js",
     "demo:drop": "node scripts/drop-demo.js",
     "worker": "node src/worker.js",
-    "demo:queue": "node scripts/queue-demo.js"
+    "demo:queue": "node scripts/queue-demo.js",
+    "demo:line": "node scripts/waiting-room-demo.js"
   },
   "dependencies": {
     "bullmq": "^6.7.8",

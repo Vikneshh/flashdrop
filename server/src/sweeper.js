@@ -1,4 +1,4 @@
-import { redis, dropKeys, ACTIVE_DROPS } from './redis.js';
+import { redis, dropOps, ACTIVE_DROPS } from './redis.js';
 
 /**
  * Every second: give back items whose hold expired without payment.
@@ -13,8 +13,7 @@ export function startSweeper(intervalMs = 1000) {
     try {
       const dropIds = await redis.smembers(ACTIVE_DROPS);
       for (const id of dropIds) {
-        const k = dropKeys(id);
-        const released = await redis.sweepHolds(k.stock, k.buyers, k.holds);
+        const released = await dropOps.sweep(id);
         if (released > 0) console.log(`[sweeper] drop ${id}: released ${released} expired holds`);
       }
     } catch (err) {

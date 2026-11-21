@@ -2,7 +2,7 @@
  * DROP DEMO 👟
  * Plays out a full drop with holds, payments, and expiry:
  *
- *   1. A greedy user spams "Buy" 20 times      → gets only 1
+ *   1. A greedy user spams "Buy" 20 times      → gets only 1 (most are rate-limited)
  *   2. 500 buyers rush in                      → only the remaining stock gets holds
  *   3. Some winners pay, some walk away
  *   4. Holds expire                            → unpaid items return to stock
@@ -13,6 +13,7 @@
  */
 import { parseArgs } from 'node:util';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { apiClient } from './lib.js';
 
 const { values } = parseArgs({
   options: {
@@ -27,14 +28,8 @@ const BUYERS = Number(values.buyers);
 const HOLD = Number(values.hold);
 const API = values.url;
 
-const post = (path, body) =>
-  fetch(`${API}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  }).then((r) => r.json());
-
-const stats = (id) => fetch(`${API}/drops/${id}/stats`).then((r) => r.json());
+const { post, get } = apiClient(API);
+const stats = (id) => get(`/drops/${id}/stats`);
 
 const showStats = async (id, title) => {
   const s = await stats(id);

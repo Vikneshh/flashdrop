@@ -9,29 +9,38 @@
   KEYS[1] stock    – number of items still available
   KEYS[2] buyers   – set of users who hold or bought an item (1 per person)
   KEYS[3] holds    – sorted set: user -> time their hold expires (ms)
-  KEYS[4] holdMs   – how long a hold lasts, in ms
+  KEYS[4] config   – hash: holdMs, gated (1 = waiting room on), ...
+  KEYS[5] admitted – sorted set: user -> time their admission expires
   ARGV[1] userId
 
   Returns: expiresAt (ms) on success
             0 = sold out
            -1 = this user already has one
            -2 = drop doesn't exist
+           -3 = waiting room is on and this user hasn't been admitted
 ]]
-local stock = redis.call('GET', KEYS[1])
-if not stock then return -2 end
-
-if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then return -1 end
-
-if tonumber(stock) <= 0 then return 0 end
+if redis.call('EXISTS', KEYS[4]) == 0 then return -2 end
 
 -- Use Redis's clock, not the Node server's: with many servers,
 -- their clocks can disagree. Redis is the single source of time.
 local t = redis.call('TIME')
 local now = tonumber(t[1]) * 1000 + math.floor(tonumber(t[2]) / 1000)
-local expiresAt = now + tonumber(redis.call('GET', KEYS[4]))
+
+-- The bouncer: no skipping the line
+if redis.call('HGET', KEYS[4], 'gated') == '1' then
+  local admittedUntil = redis.call('ZSCORE', KEYS[5], ARGV[1])
+  if not admittedUntil or tonumber(admittedUntil) < now then return -3 end
+end
+
+if redis.call('SISMEMBER', KEYS[2], ARGV[1]) == 1 then return -1 end
+
+if tonumber(redis.call('GET', KEYS[1]) or '0') <= 0 then return 0 end
+
+local expiresAt = now + tonumber(redis.call('HGET', KEYS[4], 'holdMs'))
 
 redis.call('DECR', KEYS[1])
 redis.call('SADD', KEYS[2], ARGV[1])
 redis.call('ZADD', KEYS[3], expiresAt, ARGV[1])
+redis.call('ZREM', KEYS[5], ARGV[1]) -- turn used: frees an admission slot for the next person
 
 return expiresAt

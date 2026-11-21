@@ -9,8 +9,18 @@ import { ordersQueue } from '../queue.js';
  * Redis gets the live counters that buyers will hammer.
  *
  * (For now we run one drop at a time, so this wipes the previous one.)
+ *
+ * waitingRoom: true  → buyers must join the line and be admitted before reserving
+ * admitRate          → how many people to let in per second
+ * admitWindowSeconds → how long an admitted person has to reserve before losing their turn
  */
-export async function createDrop({ stock = 100, holdSeconds = 120 } = {}) {
+export async function createDrop({
+  stock = 100,
+  holdSeconds = 120,
+  waitingRoom = false,
+  admitRate = 100,
+  admitWindowSeconds = 60,
+} = {}) {
   // Clean up old drops
   const oldIds = await redis.smembers(ACTIVE_DROPS);
   const oldKeys = oldIds.flatMap((id) => Object.values(dropKeys(id)));
@@ -33,7 +43,12 @@ export async function createDrop({ stock = 100, holdSeconds = 120 } = {}) {
   await redis
     .multi()
     .set(k.stock, stock)
-    .set(k.holdMs, holdSeconds * 1000)
+    .hset(k.config, {
+      holdMs: holdSeconds * 1000,
+      gated: waitingRoom ? 1 : 0,
+      admitRate,
+      admitWindowMs: admitWindowSeconds * 1000,
+    })
     .sadd(ACTIVE_DROPS, id)
     .exec();
 
@@ -50,16 +65,19 @@ export async function getDropStats(dropId) {
   if (!product) return null;
 
   const k = dropKeys(dropId);
-  const [available, onHold, paid, ordersSaved, queue] = await Promise.all([
+  const [available, onHold, paid, ordersSaved, queue, inLine, admitted] = await Promise.all([
     redis.get(k.stock).then(Number),
     redis.zcard(k.holds),
     redis.scard(k.paid), // paid according to Redis (instant)
     Order.countDocuments({ productId: product._id, mode: 'drop' }), // saved by workers (catches up)
     ordersQueue.getJobCounts('waiting', 'active', 'delayed', 'failed'),
+    redis.zcard(k.waiting),  // people in the waiting room
+    redis.zcard(k.admitted), // people let in, allowed to reserve
   ]);
 
   return {
     initialStock: product.initialStock,
+    waitingRoom: { inLine, admitted },
     available,
     onHold,
     paid,
