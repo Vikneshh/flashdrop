@@ -35,6 +35,7 @@ export const dropKeys = (dropId) => ({
 });
 
 export const ACTIVE_DROPS = 'drops:active';
+export const CURRENT_DROP = 'drops:current'; // the drop the dashboard shows
 
 /**
  * One function per Lua script, so callers never have to remember

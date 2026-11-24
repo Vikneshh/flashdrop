@@ -1,6 +1,6 @@
 import { Product } from '../models/Product.js';
 import { Order } from '../models/Order.js';
-import { redis, dropKeys, ACTIVE_DROPS } from '../redis.js';
+import { redis, dropKeys, ACTIVE_DROPS, CURRENT_DROP } from '../redis.js';
 import { ordersQueue } from '../queue.js';
 
 /**
@@ -50,6 +50,7 @@ export async function createDrop({
       admitWindowMs: admitWindowSeconds * 1000,
     })
     .sadd(ACTIVE_DROPS, id)
+    .set(CURRENT_DROP, id)
     .exec();
 
   return product;

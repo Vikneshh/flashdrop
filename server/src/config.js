@@ -23,4 +23,16 @@ export const config = {
    * can't fake their IP by sending the header themselves.
    */
   trustProxy: process.env.TRUST_PROXY ?? 'loopback',
+
+  // Live dashboard (step 5)
+  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5174', // where the dashboard is served from
+  apiUrl: process.env.API_URL ?? 'http://localhost:4000',         // where the simulator sends its fake buyers
+
+  // "Unleash the buyers" simulator — caps protect our free server from strangers
+  sim: {
+    maxBuyers: Number(process.env.SIM_MAX_BUYERS ?? 5000),
+    maxStock: 1000,
+    timeoutSeconds: 120,  // stop a simulation that runs longer than this
+    cooldownSeconds: 10,  // pause between simulations
+  },
 };

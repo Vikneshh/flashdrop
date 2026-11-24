@@ -16,8 +16,20 @@ import { config } from './config.js';
 import { Order } from './models/Order.js';
 import { ORDERS_QUEUE, queueConnection } from './queue.js';
 import { startReconciler } from './reconciler.js';
+import { redis } from './redis.js';
+import { CHAOS_FAIL_RATE } from './services/simulations.js';
 
 await mongoose.connect(config.mongoUrl);
+
+/**
+ * Chaos mode from the dashboard: the simulator can switch on a flaky
+ * "payment provider" for one run. We check the Redis flag every second.
+ */
+let chaosFailRate = 0;
+setInterval(async () => {
+  chaosFailRate = Number(await redis.get(CHAOS_FAIL_RATE).catch(() => 0)) || 0;
+}, 1000);
+const failRate = () => Math.max(config.workerFailRate, chaosFailRate);
 
 const worker = new Worker(
   ORDERS_QUEUE,
@@ -28,7 +40,7 @@ const worker = new Worker(
     await sleep(config.workerDelayMs);
 
     // Chaos testing: fail on purpose so we can watch retries happen.
-    if (Math.random() < config.workerFailRate) {
+    if (Math.random() < failRate()) {
       throw new Error('Simulated failure: payment provider timed out');
     }
 
