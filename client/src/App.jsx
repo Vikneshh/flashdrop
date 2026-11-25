@@ -1,6 +1,6 @@
 import {
   LayoutGrid, Activity, Gauge, ShieldCheck, Users, CircleCheck, Ban, PackageX, Clock, Bot,
-  ShoppingBag, Hourglass, Undo2, DoorOpen, CircleX, Zap, Lock, ListTodo, Database, Radio, GitBranch, Wrench,
+  ShoppingBag, Hourglass, Undo2, DoorOpen, CircleX, Zap, Lock, ListTodo, Database, Radio, GitBranch, Wrench, Network,
 } from 'lucide-react';
 import { useLiveFeed } from './useLiveFeed.js';
 import { Hero } from './components/Hero.jsx';
@@ -11,6 +11,7 @@ import { LineChart } from './components/LineChart.jsx';
 import { BarList } from './components/BarList.jsx';
 import { ReportCard } from './components/ReportCard.jsx';
 import { CardTitle } from './components/InfoTip.jsx';
+import { ServerSplit } from './components/ServerSplit.jsx';
 import { fmt, fmtMs } from './format.js';
 
 const REPO_URL = 'https://github.com/Vikneshh/flashdrop';
@@ -36,6 +37,7 @@ const UNDER_THE_HOOD = [
   { icon: ShieldCheck, name: 'Rate limiting', text: 'Slows down anyone clicking too fast, which is how the bots get blocked.' },
   { icon: ListTodo, name: 'BullMQ', text: 'A to-do list for saving orders. If saving fails, it retries automatically.' },
   { icon: Database, name: 'MongoDB', text: 'The permanent record of every order.' },
+  { icon: Network, name: 'Nginx load balancer', text: 'Spreads shoppers across 3 identical servers, and routes around one that crashes.' },
   { icon: Radio, name: 'Socket.IO', text: 'Pushes these live numbers to your screen twice a second.' },
 ];
 
@@ -122,6 +124,8 @@ export default function App() {
         </div>
       </div>
 
+      <ServerSplit metrics={metrics} />
+
       <div className="grid two">
         <section className="card">
           <CardTitle
@@ -158,7 +162,7 @@ export default function App() {
       </section>
 
       <footer className="footer">
-        <p>Built with Node.js, Express, Redis, BullMQ, MongoDB, Socket.IO and React.</p>
+        <p>Built with Node.js, Express, Redis, BullMQ, MongoDB, Socket.IO, Nginx, Docker and React.</p>
         <a className="repo-link" href={REPO_URL} target="_blank" rel="noreferrer">
           <GitBranch size={16} aria-hidden="true" /> Read the code on GitHub
         </a>

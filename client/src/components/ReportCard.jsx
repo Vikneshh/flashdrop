@@ -1,4 +1,4 @@
-import { ShieldCheck, ShieldAlert, Clock, MousePointerClick, Gauge, Zap, Flame, CircleCheck } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, Clock, MousePointerClick, Gauge, Zap, Flame, CircleCheck, Server } from 'lucide-react';
 import { fmt, fmtMs } from '../format.js';
 
 /**
@@ -8,6 +8,8 @@ export function ReportCard({ sim }) {
   if (sim?.status !== 'done' || !sim.report) return null;
   const r = sim.report;
   const clean = r.oversold === 0 && r.balanced;
+  const servers = Object.entries(r.servers ?? {}).sort(([a], [b]) => a.localeCompare(b)).map(([, n]) => n);
+  const serverTotal = servers.reduce((a, b) => a + b, 0) || 1;
 
   const proofs = [
     `No item was sold to two people, even with ${fmt(r.buyers)} people trying at once.`,
@@ -43,6 +45,9 @@ export function ReportCard({ sim }) {
         <Stat icon={Zap} label="Busiest second" value={fmt(r.peakRps)} unit=" req/s" />
         <Stat icon={Gauge} label="Typical response" value={`≤ ${fmtMs(r.p50)}`} />
         <Stat icon={Gauge} label="95% answered within" value={`≤ ${fmtMs(r.p95)}`} />
+        {servers.length > 1 && (
+          <Stat icon={Server} label={`Shared by ${servers.length} servers`} value={servers.map((n) => `${Math.round((n / serverTotal) * 100)}%`).join(' · ')} />
+        )}
         {sim.chaos && <Stat icon={Flame} label="Chaos mode" value="on" />}
       </dl>
     </section>

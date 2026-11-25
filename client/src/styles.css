@@ -311,6 +311,15 @@ a { color: var(--series-1); }
 .report-stats dd { margin: 2px 0 0; font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .report-stats small { font-size: 0.8rem; font-weight: 400; color: var(--muted); }
 
+/* ─── Server split ─────────────────────────────────────── */
+.unit { font-size: 0.9rem; font-weight: 500; color: var(--muted); }
+.servers { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.servers li { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--page); border: 1px solid var(--border); }
+.server-body { flex: 1; min-width: 0; }
+.server-icon { display: inline-grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; color: var(--muted); background: var(--grid); }
+.server-icon.on { color: var(--good-text); background: rgba(12, 163, 12, 0.12); }
+.server-count { color: var(--muted); font-size: 0.82rem; }
+
 /* ─── Under the hood ───────────────────────────────────── */
 .hood-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 @media (max-width: 900px) { .hood-list { grid-template-columns: repeat(2, 1fr); } }

@@ -140,6 +140,7 @@ async function runSimulation({ simulationId, dropId, buyers }) {
     peakRps: server.peakRps,
     p50: server.p50,
     p95: server.p95,
+    servers: server.servers, // requests handled per API server (step 6)
   };
 }
 

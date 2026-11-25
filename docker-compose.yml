@@ -1,11 +1,30 @@
-# Local infrastructure for development.
-# MongoDB = permanent records (products, paid orders)
-# Redis   = fast live state during a drop (stock counter, holds)
-# Nginx and more servers get added in later steps.
+# The whole system on one machine.
+#
+#   browser ──► nginx :8080 ──┬──► api1 ─┐
+#                             ├──► api2 ─┼──► redis (live state)  ◄── worker ──► mongo
+#                             └──► api3 ─┘                         ◄── simulator (fake buyers, also via nginx)
+#
+# Full stack:       docker compose up -d --build      → http://localhost:8080
+# Local dev only:   docker compose up -d mongo redis  (then run node yourself)
+
+# Settings shared by every backend container
+x-backend: &backend
+  build: ./server
+  image: flashdrop-server
+  restart: unless-stopped
+  depends_on: [mongo, redis]
+
+x-backend-env: &backend-env
+  MONGO_URL: mongodb://mongo:27017/flashdrop
+  REDIS_URL: redis://redis:6379
+  # Trust X-Forwarded-For from private Docker addresses (nginx, simulator) only
+  TRUST_PROXY: loopback, uniquelocal
+
 services:
   mongo:
     image: mongo:7
     container_name: flashdrop-mongo
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
@@ -14,8 +33,43 @@ services:
   redis:
     image: redis:7-alpine
     container_name: flashdrop-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+
+  # Three identical API servers. Not published to the host: the only way
+  # in is through nginx.
+  api1:
+    <<: *backend
+    environment: { <<: *backend-env, INSTANCE_ID: api-1 }
+  api2:
+    <<: *backend
+    environment: { <<: *backend-env, INSTANCE_ID: api-2 }
+  api3:
+    <<: *backend
+    environment: { <<: *backend-env, INSTANCE_ID: api-3 }
+
+  worker:
+    <<: *backend
+    command: ["node", "src/worker.js"]
+    environment: *backend-env
+
+  simulator:
+    <<: *backend
+    command: ["node", "src/simulator.js"]
+    environment:
+      <<: *backend-env
+      API_URL: http://nginx # fake buyers go through the load balancer, like real ones
+
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    image: flashdrop-nginx
+    restart: unless-stopped
+    depends_on: [api1, api2, api3]
+    ports:
+      - "8080:80"
 
 volumes:
   mongo-data:

@@ -18,11 +18,16 @@ export const config = {
 
   /**
    * Which proxies to trust for the real client IP (X-Forwarded-For header).
-   * 'loopback' = only trust it when the request comes from this machine,
-   * e.g. our demo scripts, or Nginx later. A random client on the internet
-   * can't fake their IP by sending the header themselves.
+   * 'loopback'    = requests from this machine (our demo scripts in local dev)
+   * 'uniquelocal' = private network addresses (Nginx + the simulator inside Docker)
+   * Express walks X-Forwarded-For from the right and stops at the first
+   * address it does NOT trust, so a visitor on the internet can't fake their
+   * IP: Nginx appends their real public IP, and that's where the walk stops.
    */
   trustProxy: process.env.TRUST_PROXY ?? 'loopback',
+
+  // Name of this API server (step 6) — shows up in metrics and the X-Served-By header
+  instanceId: process.env.INSTANCE_ID ?? `api-${process.pid}`,
 
   // Live dashboard (step 5)
   corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5174', // where the dashboard is served from

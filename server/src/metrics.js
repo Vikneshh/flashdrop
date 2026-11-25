@@ -1,4 +1,5 @@
 import { redis } from './redis.js';
+import { config } from './config.js';
 
 /**
  * REQUEST METRICS — requests/second and latency percentiles.
@@ -33,6 +34,7 @@ export function metricsMiddleware(req, res, next) {
     const sec = Math.floor(Date.now() / 1000);
     const bucket = BUCKETS.find((b) => ms <= b) ?? 'inf';
     bump(sec, 'req');
+    bump(sec, `i:${config.instanceId}`); // which server handled it (step 6)
     bump(sec, `s${res.statusCode}`);
     bump(sec, `lat_${bucket}`);
   });
@@ -79,24 +81,28 @@ export async function readMetrics(fromSec, toSec) {
     const raw = rows[i][1] ?? {};
     const hist = {};
     const codes = {};
+    const servers = {};
     for (const [k, v] of Object.entries(raw)) {
       if (k.startsWith('lat_')) hist[k.slice(4)] = Number(v);
+      else if (k.startsWith('i:')) servers[k.slice(2)] = Number(v);
       else if (k.startsWith('s')) codes[k.slice(1)] = Number(v);
     }
     const rps = Number(raw.req ?? 0);
-    return { t, rps, p50: percentile(hist, rps, 0.5), p95: percentile(hist, rps, 0.95), codes, hist };
+    return { t, rps, p50: percentile(hist, rps, 0.5), p95: percentile(hist, rps, 0.95), codes, servers, hist };
   });
 }
 
 /** Combine many seconds into one summary (used for the final report). */
 export function summarize(points) {
   const hist = {};
+  const servers = {};
   let total = 0;
   let peakRps = 0;
   for (const pt of points) {
     total += pt.rps;
     peakRps = Math.max(peakRps, pt.rps);
     for (const [b, n] of Object.entries(pt.hist)) hist[b] = (hist[b] ?? 0) + n;
+    for (const [s, n] of Object.entries(pt.servers ?? {})) servers[s] = (servers[s] ?? 0) + n;
   }
-  return { totalRequests: total, peakRps, p50: percentile(hist, total, 0.5), p95: percentile(hist, total, 0.95) };
+  return { totalRequests: total, peakRps, p50: percentile(hist, total, 0.5), p95: percentile(hist, total, 0.95), servers };
 }
