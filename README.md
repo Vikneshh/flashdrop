@@ -176,6 +176,8 @@ The free web service has **0.1 CPU** and sleeps after 15 idle minutes (about a m
 
 So the live demo caps the crowd at 200. Even overloaded, it never oversold.
 
+**On the real Render free server** (200 buyers / 40 items): 40 / 40 sold, 0 oversold, p95 ≤ 250 ms, 2,540 requests, bots and line-skippers blocked. Render lets short bursts go above the 0.1 CPU baseline, so the live demo does better than my worst-case Docker test.
+
 ### Deploy your own
 
 1. **MongoDB Atlas:** create a free M0 cluster, a database user, and allow access from anywhere (`0.0.0.0/0`, since Render's free plan has no fixed IP). Copy the connection string and add a database name, e.g. `.../flashdrop?retryWrites=true`.
