@@ -1,7 +1,8 @@
 import {
   LayoutGrid, Activity, Gauge, ShieldCheck, Users, CircleCheck, Ban, PackageX, Clock, Bot,
-  ShoppingBag, Hourglass, Undo2, DoorOpen, CircleX, Zap, Lock, ListTodo, Database, Radio, GitBranch, Wrench, Network,
+  ShoppingBag, Hourglass, Undo2, DoorOpen, CircleX, Zap, Lock, ListTodo, Database, Radio, GitBranch, Wrench, Network, Loader2,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useLiveFeed } from './useLiveFeed.js';
 import { Hero } from './components/Hero.jsx';
 import { UnleashPanel } from './components/UnleashPanel.jsx';
@@ -44,6 +45,14 @@ const UNDER_THE_HOOD = [
 export default function App() {
   const { connected, drop, sim, metrics } = useLiveFeed();
 
+  // Free hosting puts the server to sleep when idle. If we can't connect quickly, say why.
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (connected) return setSlow(false);
+    const t = setTimeout(() => setSlow(true), 2500);
+    return () => clearTimeout(t);
+  }, [connected]);
+
   const rps = metrics.map((p) => ({ t: p.t, value: p.rps }));
   const p95 = metrics.map((p) => ({ t: p.t, value: p.p95 }));
   const latest = metrics.at(-1);
@@ -66,6 +75,15 @@ export default function App() {
   return (
     <div className="page">
       <Hero connected={connected} />
+      {slow && (
+        <p className="waking" role="status">
+          <Loader2 size={18} className="spin" aria-hidden="true" />
+          <span>
+            <b>Waking up the server…</b> It runs on free hosting, which sleeps when nobody's using it.
+            This takes up to a minute, and the page connects by itself.
+          </span>
+        </p>
+      )}
 
       <UnleashPanel sim={sim} drop={drop} />
       <ReportCard sim={sim} />

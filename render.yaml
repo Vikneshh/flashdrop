@@ -1,0 +1,76 @@
+# Render Blueprint: everything on Render's free plan.
+# Render dashboard → New → Blueprint → pick this repo. It creates all 3 services.
+# You only paste one secret: MONGO_URL (from MongoDB Atlas M0, also free).
+#
+#   flashdrop        static site   the dashboard (CDN, never sleeps)
+#   flashdrop-api    web service   API + order worker + simulator in ONE process
+#                                  (background workers aren't free on Render)
+#   flashdrop-redis  key value     Redis-compatible, internal network only
+#
+# Free plan limits: the web service has 0.1 CPU / 512MB and sleeps after
+# 15 idle minutes (~1 min to wake). So the live crowd is capped at 200.
+# The 5,000-buyer, 3-server numbers in the README come from docker-compose.
+
+services:
+  - type: web
+    name: flashdrop-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: server
+    buildCommand: npm ci --omit=dev
+    startCommand: node src/all-in-one.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URL
+        sync: false # paste your Atlas connection string when Render asks
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: flashdrop-redis
+          property: connectionString
+      - key: CORS_ORIGIN # only our dashboard may call the API from a browser
+        fromService:
+          type: web
+          name: flashdrop
+          property: host
+      - key: ADMIN_TOKEN # protects create/reset routes; Render generates a random one
+        generateValue: true
+      - key: TRUST_PROXY # Render's load balancer reaches us from a private address
+        value: loopback, uniquelocal
+      - key: INSTANCE_ID
+        value: render
+      - key: SIM_MAX_BUYERS # 0.1 CPU: bigger crowds overload it (tested)
+        value: "200"
+      - key: SIM_MAX_STOCK
+        value: "40"
+
+  - type: web
+    name: flashdrop
+    runtime: static
+    rootDir: client
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: flashdrop-api
+          property: host
+
+  - type: keyvalue
+    name: flashdrop-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction # BullMQ must never have its jobs evicted
+    ipAllowList: [] # no public access; only our API can reach it

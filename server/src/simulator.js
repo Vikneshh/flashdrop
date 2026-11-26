@@ -19,6 +19,7 @@ import { redis } from './redis.js';
 import { queueConnection } from './queue.js';
 import { SIM_QUEUE, finishSimulation } from './services/simulations.js';
 import { readMetrics, summarize } from './metrics.js';
+import { onShutdown } from './lifecycle.js';
 
 // Reuse up to 500 keep-alive connections instead of opening one per request
 const agent = new Agent({ connections: 500, keepAliveTimeout: 10_000 });
@@ -74,7 +75,8 @@ async function runSimulation({ simulationId, dropId, buyers }) {
       if (Date.now() > deadline) return 'timed out';
       if (r.status === 'sold_out') return 'sold out while in line';
       if (r.status === 'not_in_line') return 'lost their turn';
-      await sleep(r.httpStatus === 429 ? r.retryAfterMs : rand(900, 1500)); // poll like a browser tab
+      // Poll when the server says to (pollAfterMs), like a real waiting-room page
+      await sleep(r.httpStatus === 429 ? r.retryAfterMs : (r.pollAfterMs ?? rand(900, 1500)));
       r = await call('GET', `/drops/${dropId}/line/${userId}`, null, ip);
     }
 
@@ -163,9 +165,4 @@ const worker = new Worker(
 
 worker.on('ready', () => console.log(`[simulator] ready — sending buyers to ${API}`));
 
-const shutdown = async () => {
-  await worker.close();
-  process.exit(0);
-};
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+onShutdown('simulator', () => worker.close());

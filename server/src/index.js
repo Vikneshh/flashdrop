@@ -9,9 +9,13 @@ import { startSweeper } from './sweeper.js';
 import { startGatekeeper } from './gatekeeper.js';
 import { metricsMiddleware, startMetricsFlusher } from './metrics.js';
 import { startLive } from './live.js';
+import { onShutdown } from './lifecycle.js';
+import { requireAdmin } from './middleware/admin.js';
+import { cors } from './middleware/cors.js';
 
 const app = express();
 app.set('trust proxy', config.trustProxy); // so req.ip is the real client, not the proxy
+app.use(cors);
 app.use(express.json());
 app.use((req, res, next) => {
   res.set('X-Served-By', config.instanceId); // see which server answered (load balancer demo)
@@ -19,9 +23,10 @@ app.use((req, res, next) => {
 });
 app.use(metricsMiddleware);
 
-app.get('/health', (req, res) => res.json({ ok: true }));
-app.use('/buy', buyRouter);
-app.use('/admin', adminRouter);
+// yourIp: lets us check the real client IP is detected behind a proxy (Nginx / Render)
+app.get('/health', (req, res) => res.json({ ok: true, instance: config.instanceId, yourIp: req.ip }));
+app.use('/buy', requireAdmin, buyRouter);     // step-1 demo routes: never public
+app.use('/admin', requireAdmin, adminRouter);
 app.use('/drops', dropsRouter);
 app.use('/simulations', simulationsRouter);
 
@@ -53,19 +58,9 @@ const io = startLive(server);
  * A hard crash (SIGKILL) can't be handled. Nginx retries safe requests elsewhere,
  * and our Lua scripts make it safe for a buyer to retry the rest.
  */
-let shuttingDown = false;
-function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`[${config.instanceId}] ${signal}: finishing in-flight requests…`);
-  io.close(); // dashboards reconnect, nginx routes them to another server
-  server.close(async () => {
-    await mongoose.disconnect();
-    console.log(`[${config.instanceId}] shut down cleanly`);
-    process.exit(0);
-  });
-  server.closeIdleConnections(); // idle keep-alive sockets from nginx: close now
-  setTimeout(() => process.exit(1), 10_000).unref(); // never hang forever
-}
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+onShutdown('api', () => new Promise((resolve) => {
+  console.log(`[${config.instanceId}] finishing in-flight requests…`);
+  server.close(resolve);          // resolves once every in-flight request has finished
+  server.closeIdleConnections();  // idle keep-alive sockets: close now
+  io.close();                     // drop websockets; dashboards reconnect to another server
+}));

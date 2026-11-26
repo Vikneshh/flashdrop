@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
+    "start:all": "node src/all-in-one.js",
     "stampede": "node scripts/stampede.js",
     "demo:drop": "node scripts/drop-demo.js",
     "worker": "node src/worker.js",
@@ -21,5 +22,8 @@
     "mongoose": "^9.12.3",
     "socket.io": "^4.8.4",
     "undici": "^8.13.1"
+  },
+  "engines": {
+    "node": ">=24"
   }
 }

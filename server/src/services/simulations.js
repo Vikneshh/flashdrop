@@ -37,7 +37,7 @@ export async function startSimulation({ buyers, stock, chaos }) {
 
   // Admit roughly a tenth of the stock per second, so a drop sells out in ~10–20s
   const admitRate = Math.max(20, Math.ceil(stock / 10));
-  const drop = await createDrop({ stock, holdSeconds: 5, waitingRoom: true, admitRate, admitWindowSeconds: 10 });
+  const drop = await createDrop({ stock, holdSeconds: 5, waitingRoom: true, admitRate, admitWindowSeconds: 20 }); // polls are capped at window/4 = 5s
   const dropId = drop._id.toString();
 
   // Chaos mode: make the "payment provider" fail 30% of the time for this run

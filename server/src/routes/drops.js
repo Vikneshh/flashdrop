@@ -5,6 +5,7 @@ import { createDrop, getDropStats } from '../services/drops.js';
 import { enqueueOrder } from '../queue.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { config } from '../config.js';
+import { requireAdmin } from '../middleware/admin.js';
 
 export const dropsRouter = Router();
 
@@ -30,9 +31,9 @@ const userLimit = (action) =>
 /**
  * Create a new drop.
  * POST /drops { stock, holdSeconds, waitingRoom, admitRate, admitWindowSeconds }
- * (Admin-only in a real app — auth comes later.)
+ * Admin only: creating a drop wipes the previous one.
  */
-dropsRouter.post('/', async (req, res) => {
+dropsRouter.post('/', requireAdmin, async (req, res) => {
   const b = req.body ?? {};
   const product = await createDrop({
     stock: Number(b.stock ?? 100),
@@ -50,7 +51,8 @@ dropsRouter.post('/', async (req, res) => {
 dropsRouter.post('/:dropId/line', ipLimit, userLimit('line'), requireUser, async (req, res) => {
   const [code, value] = await dropOps.join(req.params.dropId, req.body.userId);
 
-  if (code === 1) return res.json({ ok: true, status: 'waiting', position: value });
+  // First check-in comes 1–2s after joining; after that the status response sets the pace
+  if (code === 1) return res.json({ ok: true, status: 'waiting', position: value, pollAfterMs: 1000 + Math.round(Math.random() * 1000) });
   if (code === 2) return res.json({ ok: true, status: 'admitted', expiresAt: value });
   if (code === 3) return res.status(409).json({ ok: false, status: 'sold_out' });
   if (code === 4) return res.status(409).json({ ok: false, status: 'already_has_item' });
@@ -58,17 +60,33 @@ dropsRouter.post('/:dropId/line', ipLimit, userLimit('line'), requireUser, async
 });
 
 /**
- * "Where am I in line?" — the waiting-room screen polls this.
- * (Step 6 replaces polling with live Socket.IO updates.)
+ * SERVER-DRIVEN POLLING (step 7).
+ * If everyone in line asks "is it my turn?" every second, 5,000 people = 5,000
+ * requests/second of pure waiting. But person #800 with 20 let in per second
+ * won't be called for ~40s, so they only need to check every few seconds.
+ * The server tells each client when to ask again: front of the line → 1s,
+ * back of the line → up to 8s. Random jitter stops everyone polling in sync.
+ *
+ * Safety rule: never wait longer than 1/4 of the admission window. Otherwise
+ * someone let in right after a check could miss their turn before the next one.
  */
+function pollAfterMs(position, admitRate, admitWindowMs) {
+  const waitMs = (position / Math.max(1, admitRate)) * 1000;
+  const ceiling = Math.min(8000, (admitWindowMs || 10_000) / 4);
+  const base = Math.min(ceiling, Math.max(1000, waitMs / 2));
+  return Math.round(Math.min(ceiling, base * (0.8 + Math.random() * 0.4)));
+}
+
+/** "Where am I in line?" — the waiting-room screen polls this. */
 dropsRouter.get('/:dropId/line/:userId', ipLimit, userLimit('line-status'), async (req, res) => {
-  const [code, value, admitRate] = await dropOps.status(req.params.dropId, req.params.userId);
+  const [code, value, admitRate, admitWindowMs] = await dropOps.status(req.params.dropId, req.params.userId);
 
   if (code === 1) {
     return res.json({
       status: 'waiting',
       position: value,
       estimatedWaitSeconds: Math.ceil(value / admitRate),
+      pollAfterMs: pollAfterMs(value, admitRate, admitWindowMs),
     });
   }
   if (code === 2) return res.json({ status: 'admitted', expiresAt: value });

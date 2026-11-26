@@ -4,7 +4,7 @@
   KEYS[1] waiting, KEYS[2] admitted, KEYS[3] stock, KEYS[4] holds, KEYS[5] config
   ARGV[1] userId
 
-  Returns: { 1, position, admitRate }  still waiting
+  Returns: { 1, position, admitRate, admitWindowMs }  still waiting
            { 2, expiresAt, 0 }         your turn! go reserve before expiresAt
            { 3, 0, 0 }                 sold out
            { 0, 0, 0 }                 not in line (never joined, or turn expired)
@@ -26,7 +26,8 @@ end
 
 local rank = redis.call('ZRANK', KEYS[1], ARGV[1])
 if rank then
-  return { 1, rank + 1, tonumber(redis.call('HGET', KEYS[5], 'admitRate')) }
+  local cfg = redis.call('HMGET', KEYS[5], 'admitRate', 'admitWindowMs')
+  return { 1, rank + 1, tonumber(cfg[1]), tonumber(cfg[2]) }
 end
 
 return { 0, 0, 0 }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { Users, Package, Flame, Rocket, Loader2 } from 'lucide-react';
-import { startSimulation } from '../api.js';
+import { useEffect, useState } from 'react';
+import { Users, Package, Flame, Rocket, Loader2, Cpu } from 'lucide-react';
+import { startSimulation, getLimits } from '../api.js';
 import { fmt } from '../format.js';
 import { Narrator } from './Narrator.jsx';
 
@@ -14,6 +14,19 @@ export function UnleashPanel({ sim, drop }) {
   const [chaos, setChaos] = useState(false);
   const [message, setMessage] = useState(null);
   const [sending, setSending] = useState(false);
+  const [limits, setLimits] = useState({ maxBuyers: 5000, maxStock: 1000 });
+
+  // The free demo server is tiny, so it allows smaller crowds. Ask it what it can take.
+  useEffect(() => {
+    getLimits().then((l) => {
+      if (!l) return;
+      setLimits(l);
+      setBuyers((b) => Math.min(b, l.maxBuyers));
+      setStock((s) => Math.min(s, l.maxStock, Math.round(l.maxBuyers / 5)));
+    });
+  }, []);
+  const small = limits.maxBuyers < 1000;
+  const buyerStep = small ? 10 : 100;
 
   const running = sim && (sim.status === 'queued' || sim.status === 'running');
   const progress = running && sim.buyers ? sim.finishedBuyers / sim.buyers : 0;
@@ -44,12 +57,12 @@ export function UnleashPanel({ sim, drop }) {
       <div className="controls">
         <label className="control">
           <span className="control-label"><Users size={16} aria-hidden="true" /> Shoppers <b>{fmt(buyers)}</b></span>
-          <input type="range" min="100" max="5000" step="100" value={buyers} disabled={running}
+          <input type="range" min="100" max={limits.maxBuyers} step={buyerStep} value={buyers} disabled={running}
             onChange={(e) => setBuyers(Number(e.target.value))} />
         </label>
         <label className="control">
           <span className="control-label"><Package size={16} aria-hidden="true" /> Items for sale <b>{fmt(items)}</b></span>
-          <input type="range" min="10" max="1000" step="10" value={stock} disabled={running}
+          <input type="range" min="10" max={Math.min(limits.maxStock, buyers)} step={small ? 5 : 10} value={Math.min(stock, buyers)} disabled={running}
             onChange={(e) => setStock(Number(e.target.value))} />
         </label>
         <label className={`control toggle ${chaos ? 'on' : ''}`}>
@@ -72,6 +85,16 @@ export function UnleashPanel({ sim, drop }) {
       </button>
 
       <Narrator drop={drop} sim={sim} />
+      {small && (
+        <p className="notice small-server">
+          <Cpu size={16} aria-hidden="true" />
+          <span>
+            This free demo server has 1/10th of a CPU, so crowds are capped at {fmt(limits.maxBuyers)} here
+            and answers are slower. The full 5,000-shopper test across 3 servers is{' '}
+            <a href="https://github.com/Vikneshh/flashdrop#benchmarks" target="_blank" rel="noreferrer">on GitHub</a>.
+          </span>
+        </p>
+      )}
       {message && <p className="notice" role="alert">{message}</p>}
     </section>
   );

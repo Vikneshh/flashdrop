@@ -1,7 +1,13 @@
+// Render passes other services' addresses as bare hostnames ("x.onrender.com")
+const withScheme = (url) => (/^https?:\/\//.test(url) ? url : `https://${url}`);
+
 // All settings in one place. Values come from environment variables,
 // with defaults that work for local development.
 export const config = {
   port: Number(process.env.PORT ?? 4000),
+  isProduction: process.env.NODE_ENV === 'production',
+  // Protects admin routes (create/reset drops). Required in production, optional in local dev.
+  adminToken: process.env.ADMIN_TOKEN ?? '',
   mongoUrl: process.env.MONGO_URL ?? 'mongodb://localhost:27017/flashdrop',
   redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
 
@@ -30,13 +36,13 @@ export const config = {
   instanceId: process.env.INSTANCE_ID ?? `api-${process.pid}`,
 
   // Live dashboard (step 5)
-  corsOrigin: process.env.CORS_ORIGIN ?? 'http://localhost:5174', // where the dashboard is served from
-  apiUrl: process.env.API_URL ?? 'http://localhost:4000',         // where the simulator sends its fake buyers
+  corsOrigin: withScheme(process.env.CORS_ORIGIN ?? 'http://localhost:5174'), // where the dashboard is served from
+  apiUrl: process.env.API_URL ?? `http://localhost:${process.env.PORT ?? 4000}`,         // where the simulator sends its fake buyers
 
   // "Unleash the buyers" simulator — caps protect our free server from strangers
   sim: {
     maxBuyers: Number(process.env.SIM_MAX_BUYERS ?? 5000),
-    maxStock: 1000,
+    maxStock: Number(process.env.SIM_MAX_STOCK ?? 1000),
     timeoutSeconds: 120,  // stop a simulation that runs longer than this
     cooldownSeconds: 10,  // pause between simulations
   },

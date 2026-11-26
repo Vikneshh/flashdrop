@@ -19,6 +19,8 @@ x-backend-env: &backend-env
   REDIS_URL: redis://redis:6379
   # Trust X-Forwarded-For from private Docker addresses (nginx, simulator) only
   TRUST_PROXY: loopback, uniquelocal
+  # Admin routes (create/reset drops) need this token. Override it for anything public.
+  ADMIN_TOKEN: ${ADMIN_TOKEN:-local-dev-token}
 
 services:
   mongo:

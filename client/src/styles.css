@@ -223,6 +223,15 @@ a { color: var(--series-1); }
 .narrator.bad { border-color: rgba(208, 59, 59, 0.4); background: rgba(208, 59, 59, 0.07); }
 .narrator.bad svg { color: var(--critical); }
 .notice { color: var(--text-2); font-size: 0.9rem; }
+.small-server { display: flex; gap: 8px; align-items: flex-start; font-size: 0.85rem; color: var(--muted); }
+.small-server svg { flex: none; margin-top: 2px; }
+.waking {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 16px; border-radius: 12px;
+  background: var(--series-1-wash); border: 1px solid var(--border); color: var(--text-2); font-size: 0.93rem;
+}
+.waking svg { flex: none; color: var(--series-1); margin-top: 2px; }
+.waking b { color: var(--text); }
 
 /* ─── Pipeline ─────────────────────────────────────────── */
 .pipeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }

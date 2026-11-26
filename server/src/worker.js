@@ -18,6 +18,7 @@ import { ORDERS_QUEUE, queueConnection } from './queue.js';
 import { startReconciler } from './reconciler.js';
 import { redis } from './redis.js';
 import { CHAOS_FAIL_RATE } from './services/simulations.js';
+import { onShutdown } from './lifecycle.js';
 
 await mongoose.connect(config.mongoUrl);
 
@@ -91,11 +92,7 @@ startReconciler();
  * current ones finish. (A hard crash is also safe — stuck jobs get retried —
  * but a clean exit avoids the wait.)
  */
-const shutdown = async (signal) => {
-  console.log(`[worker] ${signal} received, finishing current jobs...`);
+onShutdown('worker', async () => {
+  console.log('[worker] finishing current jobs...');
   await worker.close();
-  await mongoose.disconnect();
-  process.exit(0);
-};
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+});
