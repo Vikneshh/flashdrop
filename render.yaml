@@ -31,15 +31,15 @@ services:
           type: keyvalue
           name: flashdrop-redis
           property: connectionString
-      - key: CORS_ORIGIN # only our dashboard may call the API from a browser
-        fromService:
-          type: web
-          name: flashdrop
-          property: host
+      # Only our dashboard may call the API from a browser.
+      # Render's `host` property is the INTERNAL name, so public URLs are set here.
+      # Forking this? Deploy once, then put your own two .onrender.com URLs here.
+      - key: CORS_ORIGIN
+        value: https://flashdrop-f62a.onrender.com
       - key: ADMIN_TOKEN # protects create/reset routes; Render generates a random one
         generateValue: true
-      - key: TRUST_PROXY # Render's load balancer reaches us from a private address
-        value: loopback, uniquelocal
+      - key: TRUST_PROXY # visitor → Cloudflare → Render's load balancer → app
+        value: loopback, uniquelocal, cloudflare
       - key: INSTANCE_ID
         value: render
       - key: SIM_MAX_BUYERS # 0.1 CPU: bigger crowds overload it (tested)
@@ -62,11 +62,8 @@ services:
         name: Cache-Control
         value: public, max-age=31536000, immutable
     envVars:
-      - key: VITE_API_URL
-        fromService:
-          type: web
-          name: flashdrop-api
-          property: host
+      - key: VITE_API_URL # baked into the dashboard at build time
+        value: https://flashdrop-api-q958.onrender.com
 
   - type: keyvalue
     name: flashdrop-redis

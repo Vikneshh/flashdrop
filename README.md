@@ -4,7 +4,7 @@
 
 Think concert tickets or sneaker drops: everyone rushes in at the same second. Many sites crash, or worse, sell the same seat to two people. Flashdrop is the backend built to stay fair and fast under that rush, plus a live dashboard where you can **unleash a crowd of simulated shoppers** (bots and line-cutters included) and watch it hold up.
 
-**Live demo:** _link added after deploy_ · runs on Render's free plan (small server, see [limits](#running-on-a-free-server))
+**Live demo: [flashdrop-f62a.onrender.com](https://flashdrop-f62a.onrender.com)** · runs on Render's free plan, so the first visit can take up to a minute to wake the server (see [limits](#running-on-a-free-server))
 
 ![Flashdrop dashboard after a 3,000-shopper sale: 400 items, 400 sold, zero sold twice](docs/dashboard.png)
 
@@ -180,8 +180,9 @@ So the live demo caps the crowd at 200. Even overloaded, it never oversold.
 
 1. **MongoDB Atlas:** create a free M0 cluster, a database user, and allow access from anywhere (`0.0.0.0/0`, since Render's free plan has no fixed IP). Copy the connection string and add a database name, e.g. `.../flashdrop?retryWrites=true`.
 2. **Render:** New → Blueprint → pick this repo. [`render.yaml`](render.yaml) creates the dashboard, the API and Redis. Paste the Atlas string when asked for `MONGO_URL`.
-3. Open the dashboard URL and press **Send shoppers**.
-4. Check the real client IP is detected: open `https://<api>.onrender.com/health`. `yourIp` should be your own IP. If it shows a proxy address, adjust `TRUST_PROXY`.
+3. Render gives each service a random public URL (`flashdrop-xxxx.onrender.com`). Put yours into `CORS_ORIGIN` and `VITE_API_URL` in `render.yaml` and push. (Render's `host` property is the internal name, not the public URL, so it can't be wired automatically.)
+4. Open the dashboard URL and press **Send shoppers**.
+5. Check the real client IP is detected: open `https://<api>.onrender.com/health`. `yourIp` should be your own IP. Render sits behind Cloudflare, so `TRUST_PROXY` includes Cloudflare's published ranges.
 
 Admin routes (create/reset a drop) need the `ADMIN_TOKEN` Render generates; without a token they're disabled in production.
 

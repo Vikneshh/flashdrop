@@ -1,6 +1,20 @@
 // Render passes other services' addresses as bare hostnames ("x.onrender.com")
 const withScheme = (url) => (/^https?:\/\//.test(url) ? url : `https://${url}`);
 
+// Cloudflare's published proxy ranges (cloudflare.com/ips). Render sits behind
+// Cloudflare, so the request reaches us as: visitor → Cloudflare → Render → app.
+// Trusting these ranges lets Express pick the visitor's IP from X-Forwarded-For.
+const CLOUDFLARE_RANGES = [
+  '173.245.48.0/20', '103.21.244.0/22', '103.22.200.0/22', '103.31.4.0/22', '141.101.64.0/18',
+  '108.162.192.0/18', '190.93.240.0/20', '188.114.96.0/20', '197.234.240.0/22', '198.41.128.0/17',
+  '162.158.0.0/15', '104.16.0.0/13', '104.24.0.0/14', '172.64.0.0/13', '131.0.72.0/22',
+  '2400:cb00::/32', '2606:4700::/32', '2803:f800::/32', '2405:b500::/32', '2405:8100::/32',
+  '2a06:98c0::/29', '2c0f:f248::/32',
+];
+// TRUST_PROXY="loopback, uniquelocal, cloudflare" → the word "cloudflare" expands to the ranges above
+const parseTrustProxy = (value) =>
+  value.split(',').map((s) => s.trim()).filter(Boolean).flatMap((s) => (s === 'cloudflare' ? CLOUDFLARE_RANGES : [s]));
+
 // All settings in one place. Values come from environment variables,
 // with defaults that work for local development.
 export const config = {
@@ -30,7 +44,7 @@ export const config = {
    * address it does NOT trust, so a visitor on the internet can't fake their
    * IP: Nginx appends their real public IP, and that's where the walk stops.
    */
-  trustProxy: process.env.TRUST_PROXY ?? 'loopback',
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY ?? 'loopback'),
 
   // Name of this API server (step 6) — shows up in metrics and the X-Served-By header
   instanceId: process.env.INSTANCE_ID ?? `api-${process.pid}`,
